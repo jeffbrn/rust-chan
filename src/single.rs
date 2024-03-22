@@ -1,12 +1,13 @@
 use std::{sync::{Arc, Mutex}, time::Duration};
 
-use crossbeam_channel::{Sender, Receiver};
+use crossbeam_channel::{Receiver, Sender};
 
 /*
  * Single channel all works subscribe only 1 worker receives the message
  */
 
-pub struct MessageBus {
+/// 
+ pub struct MessageBus {
     tx: Sender<(String, usize)>,
     rx: Receiver<(String, usize)>
 }
@@ -17,8 +18,18 @@ impl MessageBus {
         Self {tx: t, rx: r}
     }
  
-    pub fn send(&self, msg: (String, usize)) {
-        let _res = self.tx.send((msg.0, msg.1)).unwrap();
+    pub fn send(&self, msg: (String, usize)) -> bool {
+        println!("  main        | sending msg # {} : {}", msg.1, msg.0);
+        let result = self.tx.send_timeout((msg.0, msg.1), Duration::from_millis(100));
+        let mut retval = true;
+        match result {
+            Ok(_) => {},
+            Err(error) => {
+                println!("Send error: {}", error.to_string());
+                retval = false;
+            }
+        }
+        retval
     }
  
     fn get_recvr(&self) -> Receiver<(String, usize)> {
@@ -54,16 +65,23 @@ impl Worker {
             println!("Creating worker: {:?}", name1);
             loop {
                 let message = x.recv();
-                let msg = message.unwrap();
-                println!("  worker '{}' | received msg # {} : {}", name1, msg.1, msg.0);
-                {
-                    let mut n = ctr.lock().unwrap();
-                    *n += 1;
+                match message {
+                    Ok(msg) => {
+                        println!("  worker '{}' | received msg # {} : {}", name1, msg.1, msg.0);
+                        {
+                            let mut n = ctr.lock().unwrap();
+                            *n += 1;
+                        }
+                    },
+                    Err(_) => {
+                        // channel disconnected exit thread
+                        break;
+                    }
                 }
                 if do_delay {
                     std::thread::sleep(Duration::from_secs(2));
                 }
-            }
+    }
         });
     }
  
