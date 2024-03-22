@@ -1,4 +1,4 @@
-use std::{sync::{Arc, Mutex}, time::Duration};
+use std::{sync::{Arc, Mutex, atomic::AtomicBool}, thread::JoinHandle, time::Duration};
 
 use crossbeam_channel::{Receiver, Sender};
 
@@ -27,6 +27,7 @@ impl MessageBus {
             Err(error) => {
                 println!("Send error: {}", error.to_string());
                 retval = false;
+                std::thread::yield_now();
             }
         }
         retval
@@ -41,50 +42,57 @@ pub struct Worker {
     name: String,
     inputs: Receiver<(String, usize)>,
     rec_cnt: Arc<Mutex<u32>>,
-    delay: bool
+    delay: bool,
+    handle: JoinHandle<()>,
+    interrupt: Arc<AtomicBool>,
 }
  
 impl Worker {
     pub fn new(nm : String, mb: &MessageBus, do_delay: bool) -> Self {
+        let recvr = mb.get_recvr();
+        let ctr = Arc::new(Mutex::new(0));
+        let intr = Arc::new(AtomicBool::new(false));
+        let intr_ = intr.clone();
         let retval = Self {
-            name: nm.clone().to_string(),
+            name: nm.clone(),
             inputs: mb.get_recvr(),
-            rec_cnt: Arc::new(Mutex::new(0)),
-            delay: do_delay
+            rec_cnt: ctr.clone(),
+            delay: do_delay,
+            handle: std::thread::spawn(move || {
+                println!("Creating worker: {:?}", nm);
+                let chk_stop = intr.clone();
+                loop {
+                    let message = recvr.recv_timeout(Duration::from_millis(500));
+                    match message {
+                        Ok(msg) => {
+                            println!("  worker '{}' | received msg # {} : {}", nm, msg.1, msg.0);
+                            {
+                                let mut n = ctr.lock().unwrap();
+                                *n += 1;
+                            }
+                        },
+                        Err(_) => {
+                            if chk_stop.load(std::sync::atomic::Ordering::SeqCst) {
+                                break;
+                            }
+                            continue;
+                        }
+                    }
+                    if do_delay {
+                        std::thread::sleep(Duration::from_secs(2));
+                    }
+                }
+            }),
+            interrupt: intr_
         };
-        retval.run();
+        std::thread::yield_now();
         retval
     }
 
-    pub fn run(&self) {
-        let ctr = Arc::clone(&self.rec_cnt);
-        let name1 = self.name.clone();
-        let x = self.inputs.clone();
-        let do_delay = self.delay;
-        std::thread::spawn(move || {
-            println!("Creating worker: {:?}", name1);
-            loop {
-                let message = x.recv();
-                match message {
-                    Ok(msg) => {
-                        println!("  worker '{}' | received msg # {} : {}", name1, msg.1, msg.0);
-                        {
-                            let mut n = ctr.lock().unwrap();
-                            *n += 1;
-                        }
-                    },
-                    Err(_) => {
-                        // channel disconnected exit thread
-                        break;
-                    }
-                }
-                if do_delay {
-                    std::thread::sleep(Duration::from_secs(2));
-                }
-    }
-        });
-    }
- 
     pub fn get_cnt(&self) -> u32 { *self.rec_cnt.lock().unwrap() }
 
+    pub fn stop(self) {
+        self.interrupt.store(true, std::sync::atomic::Ordering::SeqCst);
+        self.handle.join().expect("Failed to join thread");
+    }
 }

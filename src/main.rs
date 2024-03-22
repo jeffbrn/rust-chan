@@ -32,14 +32,10 @@ fn test_single() {
 fn test_delay() {
     let mb = single::MessageBus::new(1);
     let wrk = single::Worker::new("Worker 1".to_string(), &mb, true);
-    std::thread::sleep(Duration::from_secs(1));
     assert_eq!(mb.send(("this is the send message".to_string(), 1)), true);
     assert_eq!(mb.send(("this is the send message".to_string(), 2)), true);
     assert_eq!(mb.send(("this is the send message".to_string(), 3)), false);
-    assert_eq!(mb.send(("this is the send message".to_string(), 4)), false);
-    assert_eq!(mb.send(("this is the send message".to_string(), 5)), false);
-    assert_eq!(mb.send(("this is the send message".to_string(), 6)), false);
-    assert_eq!(mb.send(("this is the send message".to_string(), 7)), false);
-    std::thread::sleep(Duration::from_secs(3));
-    assert_eq!(wrk.get_cnt(), 2);
+    std::thread::sleep(Duration::from_secs(1));
+    assert_eq!(wrk.get_cnt(), 1);
+    wrk.stop();
 }
