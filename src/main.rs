@@ -26,6 +26,9 @@ fn test_single() {
         sum += w.get_cnt();
     }
     assert_eq!(sum, 10);
+    for w in workers {
+        w.stop();
+    }
 }
 
 #[test]
@@ -38,4 +41,11 @@ fn test_delay() {
     std::thread::sleep(Duration::from_secs(1));
     assert_eq!(wrk.get_cnt(), 1);
     wrk.stop();
+}
+
+#[test]
+fn test_no_recvr() {
+    let mb = single::MessageBus::new(1);
+    assert_eq!(mb.send(("this is the send message".to_string(), 1)), true);
+    assert_eq!(mb.send(("this is the send message".to_string(), 2)), false);
 }

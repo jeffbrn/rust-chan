@@ -6,14 +6,15 @@ use crossbeam_channel::{Receiver, Sender};
  * Single channel all works subscribe only 1 worker receives the message
  */
 
-/// 
- pub struct MessageBus {
+/// Holds channel objects for the main thread to communicate with workers
+pub struct MessageBus {
     tx: Sender<(String, usize)>,
     rx: Receiver<(String, usize)>
 }
 
 impl MessageBus {
     pub fn new(capacity: u8) -> Self {
+        // channels are a fixed size and will not queue msgs beyond capacity
         let (t, r) = crossbeam_channel::bounded(capacity as usize);
         Self {tx: t, rx: r}
     }
@@ -27,7 +28,7 @@ impl MessageBus {
             Err(error) => {
                 println!("Send error: {}", error.to_string());
                 retval = false;
-                std::thread::yield_now();
+                std::thread::yield_now(); // free up thread to give workers a chance to catchup
             }
         }
         retval
@@ -37,14 +38,12 @@ impl MessageBus {
         self.rx.clone()
     }
 }
- 
+
+/// This is a unit that receives messages to do work
 pub struct Worker {
-    name: String,
-    inputs: Receiver<(String, usize)>,
-    rec_cnt: Arc<Mutex<u32>>,
-    delay: bool,
-    handle: JoinHandle<()>,
-    interrupt: Arc<AtomicBool>,
+    rec_cnt: Arc<Mutex<u32>>, // counter of messages received
+    handle: JoinHandle<()>, // worker thread handle
+    interrupt: Arc<AtomicBool>, // signal to thread to exit
 }
  
 impl Worker {
@@ -54,10 +53,7 @@ impl Worker {
         let intr = Arc::new(AtomicBool::new(false));
         let intr_ = intr.clone();
         let retval = Self {
-            name: nm.clone(),
-            inputs: mb.get_recvr(),
             rec_cnt: ctr.clone(),
-            delay: do_delay,
             handle: std::thread::spawn(move || {
                 println!("Creating worker: {:?}", nm);
                 let chk_stop = intr.clone();
@@ -67,18 +63,22 @@ impl Worker {
                         Ok(msg) => {
                             println!("  worker '{}' | received msg # {} : {}", nm, msg.1, msg.0);
                             {
+                                // increment rec counter
                                 let mut n = ctr.lock().unwrap();
                                 *n += 1;
                             }
                         },
                         Err(_) => {
+                            // recv timeout
                             if chk_stop.load(std::sync::atomic::Ordering::SeqCst) {
+                                // thread signalled to stop
                                 break;
                             }
                             continue;
                         }
                     }
                     if do_delay {
+                        // pretend to do lengthy work
                         std::thread::sleep(Duration::from_secs(2));
                     }
                 }
@@ -89,8 +89,10 @@ impl Worker {
         retval
     }
 
+    /// get the number of msgs recvd by worker
     pub fn get_cnt(&self) -> u32 { *self.rec_cnt.lock().unwrap() }
 
+    /// signal the worker to stop and wait until it does
     pub fn stop(self) {
         self.interrupt.store(true, std::sync::atomic::Ordering::SeqCst);
         self.handle.join().expect("Failed to join thread");
