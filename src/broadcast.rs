@@ -77,23 +77,61 @@ impl Worker {
     }
 }
 
+pub struct WorkerManager {
+    workers: Vec<Worker>,
+}
+
+impl WorkerManager {
+    fn new() -> Self {
+        Self {
+            workers: Vec::new()
+        }
+    }
+
+    fn add(&mut self, wrk: Worker) {
+        self.workers.push(wrk);
+    }
+
+    fn send(&self, msg: (String,usize)) -> bool {
+        let mut result = true;
+        for wrk in self.workers.iter() {
+            result = result && wrk.send(msg.clone());
+        }
+        result
+    }
+
+    #[cfg(test)]
+    fn chk_msg_counts(&self, expected: u32) -> bool {
+        for wrk in self.workers.iter() {
+            if wrk.get_cnt() != expected {
+                return false;
+            }
+        }
+        return true;
+    }
+}
+
+impl Drop for WorkerManager {
+    fn drop(&mut self) {
+        while self.workers.len() > 0 {
+            let w = self.workers.remove(0);
+            println!("Stopping worker");
+            w.stop();
+        }
+    }
+}
+
 #[test]
 fn test_broadcast() {
-    let mut workers: Vec<Worker> = Vec::new();
+    println!("Testing broadcast");
+    let mut workers = WorkerManager::new();
     for n in 1..=5 {
-        workers.push(Worker::new(format!("Worker {n}"), false));
+        workers.add(Worker::new(format!("Worker {n}"), false));
     }
     std::thread::sleep(Duration::from_secs(1));
     for i in 1..=10 {
-        for wrk in workers.iter() {
-            assert_eq!(wrk.send(("this is the msg".to_string(), i)), true);
-        }
+        assert_eq!(workers.send(("this is the msg".to_string(), i)), true);
     }
     std::thread::sleep(Duration::from_secs(1));
-    for wrk in workers.iter() {
-        assert_eq!(wrk.get_cnt(), 10);
-    }
-    for wrk in workers {
-        wrk.stop();
-    }
+    assert_eq!(workers.chk_msg_counts(10), true);
 }
