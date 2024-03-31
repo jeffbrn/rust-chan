@@ -24,12 +24,12 @@ pub struct SlList<T> {
 ///     println!(item);
 /// }
 /// ```
-pub struct SlListIter1<T> {
+pub struct SlListIter<T> {
 	curr_idx: Option<usize>,
 	list: SlList<T>,
 }
 /// Iterator for move list 
-impl<T: Copy> Iterator for SlListIter1<T> {
+impl<T: Copy> Iterator for SlListIter<T> {
 	type Item = T;
 
 	fn next(&mut self) -> Option<Self::Item> {
@@ -49,7 +49,7 @@ impl<T: Copy> Iterator for SlListIter1<T> {
 /// Produces the iterator for moved list
 impl <T: std::marker::Copy> IntoIterator for SlList<T> {
 	type Item = T;
-	type IntoIter = SlListIter1<T>;
+	type IntoIter = SlListIter<T>;
 
 	fn into_iter(self) -> Self::IntoIter {
 		Self::IntoIter {
@@ -58,49 +58,6 @@ impl <T: std::marker::Copy> IntoIterator for SlList<T> {
 		}
 	}
 }
-/// This is the struct that keeps track of iterating a borrowed list
-/// # Examples
-/// 
-/// ```
-/// let l = SlList::<i32>::new();
-/// for item in &l {
-///     println!(item);
-/// }
-/// ```
-// pub struct SlListIter2<'a, T> {
-// 	curr_idx: Option<usize>,
-// 	list: &'a SlList<T>,
-// }
-// /// Iterator for the borrowed list
-// impl<'a,T: Copy> Iterator for SlListIter2<'a,T> {
-// 	type Item = T;
-
-// 	fn next(&mut self) -> Option<Self::Item> {
-// 		let idx = match self.curr_idx {
-// 			None => {
-// 				return None
-// 			},
-// 			Some(i) => {
-// 				i
-// 			}
-// 		};
-// 		let item = self.list.items[idx].clone();
-// 		self.curr_idx = item.next;
-// 		Some(item.val)
-// 	}
-// }
-// /// Produces the iterator for the borrowed list
-// impl<'a,T: std::marker::Copy> IntoIterator for &'a SlList<T> {
-// 	type Item = T;
-// 	type IntoIter = SlListIter2<'a,T>;
-
-// 	fn into_iter(self) -> Self::IntoIter {
-// 		Self::IntoIter {
-// 			curr_idx: self.head,
-// 			list: &self,
-// 		}
-// 	}
-// }
 // region ^ List Iterators
 
 impl<T: Copy> Default for SlList<T> {
