@@ -1,15 +1,52 @@
-/*
- * https://opendatastructures.org/ods-python/3_1_SLList_Singly_Linked_Li.html
- */
-
+/// This structure is for a single-linked-list implementation that does not use pointers
+/// See datastructure implementation [here](https://opendatastructures.org/ods-python/3_1_SLList_Singly_Linked_Li.html)
 pub struct SlList<T> {
+	/// list items are stored in a vector with vector indexes used instead of pointers
 	items: Vec<Node<T>>,
+	/// index of the head of the list
 	head: Option<usize>,
+	/// index of the tail of the list
 	tail: Option<usize>,
+	/// index of elements that are free on the list
 	free_list: Vec<usize>,
+	/// number of elements in the list
 	n: usize,
 }
 
+// region v List Iterators
+
+/// This is the struct that keeps track of iterating a list without borrowing it (move)
+/// # Examples
+/// 
+/// ```
+/// let l = SlList::<i32>::new();
+/// for item in l {
+/// 	println!(item);
+/// }
+/// ```
+pub struct SlListIter1<T> {
+	curr_idx: Option<usize>,
+	list: SlList<T>,
+}
+/// Iterator for move list 
+impl<T: Copy> Iterator for SlListIter1<T> {
+	type Item = T;
+
+	fn next(&mut self) -> Option<Self::Item> {
+		let idx = match self.curr_idx {
+			None => {
+				return None
+			},
+			Some(i) => {
+				i
+			}
+		};
+		let item = self.list.items[idx].clone();
+		self.curr_idx = item.next;
+		return Some(item.val)
+	}
+}
+/// Produces the iterator for moved list
 impl <T: std::marker::Copy> IntoIterator for SlList<T> {
 	type Item = T;
 	type IntoIter = SlListIter1<T>;
@@ -21,6 +58,38 @@ impl <T: std::marker::Copy> IntoIterator for SlList<T> {
 		}
 	}
 }
+/// This is the struct that keeps track of iterating a borrowed list
+/// # Examples
+/// 
+/// ```
+/// let l = SlList::<i32>::new();
+/// for item in &l {
+/// 	println!(item);
+/// }
+/// ```
+pub struct SlListIter2<'a, T> {
+	curr_idx: Option<usize>,
+	list: &'a SlList<T>,
+}
+/// Iterator for the borrowed list
+impl<'a,T: Copy> Iterator for SlListIter2<'a,T> {
+	type Item = T;
+
+	fn next(&mut self) -> Option<Self::Item> {
+		let idx = match self.curr_idx {
+			None => {
+				return None
+			},
+			Some(i) => {
+				i
+			}
+		};
+		let item = self.list.items[idx].clone();
+		self.curr_idx = item.next;
+		return Some(item.val)
+	}
+}
+/// Produces the iterator for the borrowed list
 impl<'a,T: std::marker::Copy> IntoIterator for &'a SlList<T> {
 	type Item = T;
 	type IntoIter = SlListIter2<'a,T>;
@@ -32,14 +101,7 @@ impl<'a,T: std::marker::Copy> IntoIterator for &'a SlList<T> {
 		}
 	}
 }
-impl<'a,T: std::marker::Copy> IntoIterator for &'a mut SlList<T> {
-	type Item = T;
-	type IntoIter = SlListIter2<'a,T>;
-
-	fn into_iter(self) -> Self::IntoIter {
-		todo!()
-	}
-}
+// region ^ List Iterators
 
 impl<T:Copy> Clone for SlList<T> {
 	fn clone(&self) -> Self {
@@ -67,56 +129,16 @@ impl<T:Copy> Clone for SlList<T> {
 	}
 }
 
-pub struct SlListIter1<T> {
-	curr_idx: Option<usize>,
-	list: SlList<T>,
-}
-pub struct SlListIter2<'a, T> {
-	curr_idx: Option<usize>,
-	list: &'a SlList<T>,
-}
-impl<T: Copy> Iterator for SlListIter1<T> {
-	type Item = T;
-
-	fn next(&mut self) -> Option<Self::Item> {
-		let idx = match self.curr_idx {
-			None => {
-				return None
-			},
-			Some(i) => {
-				i
-			}
-		};
-		let item = self.list.items[idx].clone();
-		self.curr_idx = item.next;
-		return Some(item.val)
-	}
-}
-impl<'a,T: Copy> Iterator for SlListIter2<'a,T> {
-	type Item = T;
-
-	fn next(&mut self) -> Option<Self::Item> {
-		let idx = match self.curr_idx {
-			None => {
-				return None
-			},
-			Some(i) => {
-				i
-			}
-		};
-		let item = self.list.items[idx].clone();
-		self.curr_idx = item.next;
-		return Some(item.val)
-	}
-}
-
+/// This struct wraps the value to be stored in the list and add a pointer to the next item
 #[derive(Clone)]
 struct Node<T> {
 	val: T,
 	next: Option<usize>,
 }
 
+/// Linked list methods
 impl<T: Copy> SlList<T> {
+	/// constructor
 	pub fn new() -> Self {
 		Self {
 			items: Vec::<Node<T>>::new(),
@@ -129,25 +151,11 @@ impl<T: Copy> SlList<T> {
 
 	/// add a new value to the front of the list
 	pub fn push(&mut self, item: T) {
-		let n : Node<T> = Node {
-			val: item,
-			next: self.head,
-		};
-		let idx = match self.free_list.pop() {
-			None => {
-				self.items.push(n);
-				self.items.len()-1
-			},
-			Some(idx) => {
-				self.items[idx] = n;
-				idx
-			}
-		};
+		let idx = self.add_item(item, self.head);
 		self.head = Some(idx);
-		if self.n == 0 {
+		if self.n == 1 {
 			self.tail = self.head;
 		}
-		self.n += 1;
 	}
 	/// fetch and remove a value from the front of the list
 	pub fn pop(&mut self) -> Option<T> {
@@ -167,20 +175,7 @@ impl<T: Copy> SlList<T> {
 	}
 	/// add a new value to the end of a list
 	pub fn add_tail(&mut self, item: T) {
-		let n : Node<T> = Node {
-			val: item,
-			next: None,
-		};
-		let idx = match self.free_list.pop() {
-			None => {
-				self.items.push(n);
-				self.items.len()-1
-			},
-			Some(idx) => {
-				self.items[idx] = n;
-				idx
-			}
-		};
+		let idx = self.add_item(item, None);
 		match self.tail {
 			Some(tail_idx) => {
 				self.items[tail_idx].next = Some(idx);
@@ -188,10 +183,9 @@ impl<T: Copy> SlList<T> {
 			None => {}
 		};
 		self.tail = Some(idx);
-		if self.n == 0 {
+		if self.n == 1 {
 			self.head = self.tail;
 		}
-		self.n += 1;
 	}
 	/// fetch and remove a value from the back of the list
 	pub fn remove_tail(&mut self) -> Option<T> {
@@ -200,7 +194,7 @@ impl<T: Copy> SlList<T> {
 			Some(i) => i
 		};
 		let result = self.items[tail_idx].val;
-		if (self.head == self.tail) {
+		if self.head == self.tail {
 			self.head = None;
 			self.tail = None;
 			self.n = 0;
@@ -226,6 +220,24 @@ impl<T: Copy> SlList<T> {
 
 	pub fn len(&self) -> usize { self.n }
 	pub fn is_empty(&self) -> bool { self.n == 0 }
+
+	fn add_item(&mut self, item: T, nxt: Option<usize>) -> usize {
+		let n : Node<T> = Node {
+			val: item,
+			next: nxt,
+		};
+		self.n += 1;
+		match self.free_list.pop() {
+			None => {
+				self.items.push(n);
+				self.items.len()-1
+			},
+			Some(idx) => {
+				self.items[idx] = n;
+				idx
+			}
+		}
+	}
 }
 
 #[test]
