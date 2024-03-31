@@ -1,4 +1,4 @@
-use crossbeam_channel::{Sender, Receiver};
+use crossbeam_channel::Sender;
 use std::{sync::{Arc, Mutex, atomic::AtomicBool}, thread::JoinHandle, time::Duration};
 
 pub struct Worker {
@@ -59,7 +59,7 @@ impl Worker {
         match result {
             Ok(_) => {},
             Err(error) => {
-                println!("Send error: {}", error.to_string());
+                println!("Send error: {}", error);
                 retval = false;
                 std::thread::yield_now(); // free up thread to give workers a chance to catchup
             }
@@ -82,17 +82,17 @@ pub struct WorkerManager {
 }
 
 impl WorkerManager {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             workers: Vec::new()
         }
     }
 
-    fn add(&mut self, wrk: Worker) {
+    pub fn add(&mut self, wrk: Worker) {
         self.workers.push(wrk);
     }
 
-    fn send(&self, msg: (String,usize)) -> bool {
+    pub fn send(&self, msg: (String,usize)) -> bool {
         let mut result = true;
         for wrk in self.workers.iter() {
             result = result && wrk.send(msg.clone());
@@ -100,20 +100,19 @@ impl WorkerManager {
         result
     }
 
-    #[cfg(test)]
-    fn chk_msg_counts(&self, expected: u32) -> bool {
+    pub fn chk_msg_counts(&self, expected: u32) -> bool {
         for wrk in self.workers.iter() {
             if wrk.get_cnt() != expected {
                 return false;
             }
         }
-        return true;
+        true
     }
 }
 
 impl Drop for WorkerManager {
     fn drop(&mut self) {
-        while self.workers.len() > 0 {
+        while !self.workers.is_empty() {
             let w = self.workers.remove(0);
             println!("Stopping worker");
             w.stop();

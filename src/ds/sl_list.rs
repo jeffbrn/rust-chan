@@ -21,7 +21,7 @@ pub struct SlList<T> {
 /// ```
 /// let l = SlList::<i32>::new();
 /// for item in l {
-/// 	println!(item);
+///     println!(item);
 /// }
 /// ```
 pub struct SlListIter1<T> {
@@ -43,7 +43,7 @@ impl<T: Copy> Iterator for SlListIter1<T> {
 		};
 		let item = self.list.items[idx].clone();
 		self.curr_idx = item.next;
-		return Some(item.val)
+		Some(item.val)
 	}
 }
 /// Produces the iterator for moved list
@@ -64,45 +64,50 @@ impl <T: std::marker::Copy> IntoIterator for SlList<T> {
 /// ```
 /// let l = SlList::<i32>::new();
 /// for item in &l {
-/// 	println!(item);
+///     println!(item);
 /// }
 /// ```
-pub struct SlListIter2<'a, T> {
-	curr_idx: Option<usize>,
-	list: &'a SlList<T>,
-}
-/// Iterator for the borrowed list
-impl<'a,T: Copy> Iterator for SlListIter2<'a,T> {
-	type Item = T;
+// pub struct SlListIter2<'a, T> {
+// 	curr_idx: Option<usize>,
+// 	list: &'a SlList<T>,
+// }
+// /// Iterator for the borrowed list
+// impl<'a,T: Copy> Iterator for SlListIter2<'a,T> {
+// 	type Item = T;
 
-	fn next(&mut self) -> Option<Self::Item> {
-		let idx = match self.curr_idx {
-			None => {
-				return None
-			},
-			Some(i) => {
-				i
-			}
-		};
-		let item = self.list.items[idx].clone();
-		self.curr_idx = item.next;
-		return Some(item.val)
-	}
-}
-/// Produces the iterator for the borrowed list
-impl<'a,T: std::marker::Copy> IntoIterator for &'a SlList<T> {
-	type Item = T;
-	type IntoIter = SlListIter2<'a,T>;
+// 	fn next(&mut self) -> Option<Self::Item> {
+// 		let idx = match self.curr_idx {
+// 			None => {
+// 				return None
+// 			},
+// 			Some(i) => {
+// 				i
+// 			}
+// 		};
+// 		let item = self.list.items[idx].clone();
+// 		self.curr_idx = item.next;
+// 		Some(item.val)
+// 	}
+// }
+// /// Produces the iterator for the borrowed list
+// impl<'a,T: std::marker::Copy> IntoIterator for &'a SlList<T> {
+// 	type Item = T;
+// 	type IntoIter = SlListIter2<'a,T>;
 
-	fn into_iter(self) -> Self::IntoIter {
-		Self::IntoIter {
-			curr_idx: self.head,
-			list: &self,
-		}
-	}
-}
+// 	fn into_iter(self) -> Self::IntoIter {
+// 		Self::IntoIter {
+// 			curr_idx: self.head,
+// 			list: &self,
+// 		}
+// 	}
+// }
 // region ^ List Iterators
 
+impl<T: Copy> Default for SlList<T> {
+	fn default() -> Self {
+		Self { items: Default::default(), head: Default::default(), tail: Default::default(), free_list: Default::default(), n: Default::default() }
+	}
+}
 impl<T:Copy> Clone for SlList<T> {
 	fn clone(&self) -> Self {
 		if self.is_empty() {
@@ -140,13 +145,7 @@ struct Node<T> {
 impl<T: Copy> SlList<T> {
 	/// constructor
 	pub fn new() -> Self {
-		Self {
-			items: Vec::<Node<T>>::new(),
-			head: None,
-			tail: None,
-			free_list: Vec::new(),
-			n: 0,
-		}
+		Self::default()
 	}
 
 	/// add a new value to the front of the list
@@ -176,12 +175,9 @@ impl<T: Copy> SlList<T> {
 	/// add a new value to the end of a list
 	pub fn add_tail(&mut self, item: T) {
 		let idx = self.add_item(item, None);
-		match self.tail {
-			Some(tail_idx) => {
-				self.items[tail_idx].next = Some(idx);
-			},
-			None => {}
-		};
+		if let Some(tail_idx) = self.tail {
+			self.items[tail_idx].next = Some(idx);
+		}
 		self.tail = Some(idx);
 		if self.n == 1 {
 			self.head = self.tail;
@@ -364,4 +360,23 @@ fn rem_tail() {
 }
 
 #[test]
-fn all_ops() {}
+fn all_ops() {
+	let mut list = SlList::<i32>::new();
+	assert!(list.is_empty());
+	list.push(2);
+	list.push(1);
+	list.push(40);
+	list.add_tail(3);
+	list.add_tail(4);
+	list.add_tail(45);
+	let x = list.pop();
+	assert_eq!(x.unwrap(), 40);
+	let x = list.remove_tail();
+	assert_eq!(x.unwrap(), 45);
+	assert_eq!(list.len(), 4);
+	let mut i = 1;
+	for x in list {
+		assert_eq!(x, i);
+		i += 1;
+	}
+}

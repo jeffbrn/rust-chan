@@ -26,7 +26,7 @@ impl MessageBus {
         match result {
             Ok(_) => {},
             Err(error) => {
-                println!("Send error: {}", error.to_string());
+                println!("Send error: {}", error);
                 retval = false;
                 std::thread::yield_now(); // free up thread to give workers a chance to catchup
             }
