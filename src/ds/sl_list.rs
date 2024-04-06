@@ -15,7 +15,7 @@ pub struct SlList<T> {
 
 // region v List Iterators
 
-/// This is the struct that keeps track of iterating a list without borrowing it (move)
+/// This is the struct that keeps track of iterating a list
 /// # Examples
 /// 
 /// ```
@@ -28,7 +28,7 @@ pub struct SlListIter<T> {
 	curr_idx: Option<usize>,
 	list: SlList<T>,
 }
-/// Iterator for move list 
+/// Iterator for the list 
 impl<T: Copy> Iterator for SlListIter<T> {
 	type Item = T;
 
@@ -46,7 +46,7 @@ impl<T: Copy> Iterator for SlListIter<T> {
 		Some(item.val)
 	}
 }
-/// Produces the iterator for moved list
+/// Produces the iterator for the list
 impl <T: std::marker::Copy> IntoIterator for SlList<T> {
 	type Item = T;
 	type IntoIter = SlListIter<T>;

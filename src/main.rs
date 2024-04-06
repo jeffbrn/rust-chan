@@ -57,4 +57,10 @@ fn main() {
 		println!("item {i} = {x}");
 		i += 1;
 	}
+
+    println!("Running Binary Tree");
+	let mut tree = ds::b_tree::BTree::<i32>::new();
+	assert!(tree.is_empty());
+    tree.insert(10);
+    assert_eq!(tree.count(), 1);
 }
