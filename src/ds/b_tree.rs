@@ -23,6 +23,10 @@ pub struct Node<T> {
     left: Option<usize>,
     right: Option<usize>,
 }
+impl<T> Node<T> {
+    fn is_leaf(&self) -> bool { return self.left.is_none() && self.right.is_none() }
+    fn is_full(&self) -> bool { return self.left.is_some() && self.right.is_some() }
+}
 impl<T: std::fmt::Debug> Debug for Node<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Node").field("val", &self.val).field("left", &self.left).field("right", &self.right).finish()
@@ -47,6 +51,28 @@ impl<T:Copy+PartialEq+PartialOrd> BTree<T> {
             }
         }
     }
+
+    pub fn remove(&mut self, item: T) -> bool {
+        let find = self.find_item_index(self.root, item, None);
+        if let Some(i) = find.0 {
+            if !self.items[i].is_full() {
+                self.splice(i, find.1);
+            } else {
+                let mut w = self.items[i].right.unwrap();
+                let mut wp = i;
+                while self.items[w].left.is_some() {
+                    wp = w;
+                    w = self.items[w].left.unwrap();
+                }
+                self.items[i].val = self.items[w].val;
+                self.splice(w, Some(wp));
+            }
+            true
+        } else {
+            false
+        }
+        }
+
     pub fn count(&self) -> usize { self.n }
     pub fn is_empty(&self) -> bool { self.n == 0 }
 
@@ -98,11 +124,37 @@ impl<T:Copy+PartialEq+PartialOrd> BTree<T> {
         }
     }
 
-    // fn splice(&mut self, idx: usize) {
-    //     let u = self.items[idx].clone();
-    //     let s = if u.left.is_none() { u.right } else { u.left };
-    //     if idx == 
-    // }
+    /// find the index of an item and the index of the items parent
+    fn find_item_index(&self, from: Option<usize>, val: T, prev: Option<usize>) -> (Option<usize>, Option<usize>) {
+        match from {
+            Some(i) => {
+                let curr = self.items[i].val;
+                if curr == val { (Some(i), prev) }
+                else if val < curr { self.find_item_index(self.items[i].left, val, Some(i)) }
+                else { self.find_item_index(self.items[i].right, val, Some(i)) }
+            },
+            _ => (None, None)
+        }
+    }
+
+    /// remove a node if it is a leaf or has only one child
+    fn splice(&mut self, del_idx: usize, del_parent_idx: Option<usize>) {
+        // if leaf then s = None otherwise is the index of the only child
+        let s = if self.items[del_idx].left.is_none() { self.items[del_idx].right } else { self.items[del_idx].left };
+        if Some(del_idx) == self.root {
+            // if we are deleting the root then replace it with the deleted nodes child
+            self.root = s;
+        } else if let Some(p) = del_parent_idx {
+            // otherwise attach the deleted nodes child where the deleted node was attached to its parent
+            if Some(del_idx) == self.items[p].left {
+                self.items[p].left = s;
+            } else {
+                self.items[p].right = s;
+            }
+        }
+        self.free_list.push(del_idx); // add the deleted node to the free list
+        self.n -= 1; // dec the count
+    }
 }
 
 pub struct BTreeIter<T> {
@@ -207,7 +259,60 @@ fn insert() {
 #[test]
 fn test_tree() {
     let tree = build_test_tree();
+    let find = tree.find_item_index(tree.root, 1, None);
+    if let Some(i) = find.0 {
+        assert!(tree.items[i].is_leaf());
+    } else {
+        assert!(false);
+    }
+    let find = tree.find_item_index(tree.root, 13, None);
+    if let Some(i) = find.0 {
+        assert!(tree.items[i].is_full());
+    } else {
+        assert!(false);
+    }
     let mut vals = Vec::new();
     vals.extend(tree);
     assert_eq!(vals, vec![1,3,4,5,6,7,8,9,11,12,13,14]);
+}
+
+#[test]
+fn find_item() {
+    let tree = build_test_tree();
+    assert_eq!(tree.find_item_index(tree.root, 7, None), (Some(0), None));
+    assert_eq!(tree.find_item_index(tree.root, 9, None), (Some(5), Some(2)));
+    assert_eq!(tree.find_item_index(tree.root, 4, None), (Some(7), Some(4)));
+    assert_eq!(tree.find_item_index(tree.root, 47, None), (None, None));
+}
+
+#[test]
+fn splice_chk() {
+    let mut tree = build_test_tree();
+    let find = tree.find_item_index(tree.root, 6, None);
+    if let Some(i) = find.0 {
+        tree.splice(i, find.1);
+    } else {
+        assert!(false);
+    }
+    let find = tree.find_item_index(tree.root, 9, None);
+    if let Some(i) = find.0 {
+        tree.splice(i, find.1);
+    } else {
+        assert!(false);
+    }
+    assert_eq!(tree.count(), 10);
+    assert_eq!(tree.free_list, vec![8, 5]);
+    let mut vals = Vec::new();
+    vals.extend(tree);
+    assert_eq!(vals, vec![1,3,4,5,7,8,11,12,13,14]);
+}
+
+#[test]
+fn remove() {
+    let mut tree = build_test_tree();
+    assert!(tree.remove(11));
+    assert!(!tree.remove(11));
+    let mut vals = Vec::new();
+    vals.extend(tree);
+    assert_eq!(vals, vec![1,3,4,5,6,7,8,9,12,13,14]);
 }
