@@ -1,4 +1,3 @@
-workspace = { members = ["eg/list"] }
 [package]
 name = "rust-chan"
 version = "0.1.0"

@@ -39,7 +39,7 @@ fn main() {
     }
 
     println!("Running Single Linked List");
-	let mut list = ds::sl_list::SlList::<i32>::new();
+	let mut list = ds::linked_list::LinkedList::<i32>::new();
 	assert!(list.is_empty());
 	list.push(2);
 	list.push(1);
@@ -53,10 +53,10 @@ fn main() {
 	assert_eq!(x.unwrap(), 45);
 	assert_eq!(list.len(), 4);
 	let mut i = 1;
-	for x in list {
-		println!("item {i} = {x}");
-		i += 1;
-	}
+	// for x in list {
+	// 	println!("item {i} = {x}");
+	// 	i += 1;
+	// }
 
     println!("Running Binary Tree");
 	let mut tree = ds::b_tree::BTree::<i32>::new();

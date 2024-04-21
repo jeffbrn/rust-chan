@@ -1,14 +1,13 @@
-pub trait NodeData {
-	type TVal;
-
-	fn get_val(&self) -> Self::TVal;
-	fn set_val(&mut self, new_val: Self::TVal);
-}
+use super::node::NodeData;
 
 pub struct ListData<TNode: NodeData> {
-	items: Vec<TNode>,
+	// datastructure nodes stored in a vector
+	items: Vec<Box<TNode>>,
+	// index to the head node of the datastructure
 	pub head: Option<usize>,
+	// number of items currently stored
 	count: usize,
+	// indexes to elemets in the vector free to be reallocated
 	free_list: Vec<usize>,
 }
 
@@ -29,7 +28,7 @@ impl<TNode: NodeData> ListData<TNode> {
 				i
 			},
 			None => {
-				self.items.push(item);
+				self.items.push(Box::new(item));
 				self.items.len() - 1
 			}
 		}
@@ -38,5 +37,19 @@ impl<TNode: NodeData> ListData<TNode> {
 	pub fn rem_item(&mut self, i: usize) {
 		self.free_list.push(i);
 		self.count -= 1;
+	}
+}
+
+impl<TNode: NodeData> std::ops::Index<usize> for ListData<TNode> {
+	type Output = TNode;
+
+	fn index(&self, index: usize) -> &Self::Output {
+		&self.items[index]
+	}
+}
+
+impl<TNode: NodeData> std::ops::IndexMut<usize> for ListData<TNode> {
+	fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+		&mut self.items[index]
 	}
 }
