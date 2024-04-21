@@ -1,39 +1,37 @@
+use super::node::{NodeData, ListData};
+
 struct Node<T> {
 	val: T,
 	next: Option<usize>,
 }
 
-pub struct List<T> {
-	items: Vec<Node<T>>,
-	head: Option<usize>,
-	count: usize,
-	free_list: Vec<usize>,
+impl<T:Copy> NodeData for Node<T> {
+	type TVal = T;
+
+	fn get_val(&self) -> Self::TVal {
+		self.val
+	}
+
+	fn set_val(&mut self, new_val: Self::TVal) {
+		self.val = new_val;
+	}
 }
 
-impl<T> List<T> {
+pub struct List<T:Copy> {
+	data: ListData<Node<T>>,
+}
+
+impl<T:Copy> List<T> {
 	pub fn new() -> List<T>{
 		Self {
-			items: Vec::new(), head: None, count: 0, free_list: Vec::new()
+			data: ListData::new()
 		}
 	}
-	pub fn len(&self) -> usize { self.count }
+	pub fn len(&self) -> usize { self.data.len() }
 
-	pub fn add_item(&mut self, item : T) -> usize {
-		self.count += 1;
-		match self.free_list.pop() {
-			Some(i) => {
-				self.items[i].val = item;
-				i
-			},
-			None => {
-				self.items.push(Node { val: item, next: None});
-				self.items.len() - 1
-			}
-		}
+	pub fn add(&mut self, val : T) -> usize {
+		let item = Node { val, next: self.data.head };
+		self.data.add_item(item)
 	}
 
-	pub fn rem_item(&mut self, i: usize) {
-		self.free_list.push(i);
-		self.count -= 1;
-	}
 }
