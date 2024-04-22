@@ -1,7 +1,30 @@
 use std::{fmt::Debug, usize};
+use super::backing::{node::NodeData, list::ListData};
+
+struct Node<T> {
+    val: T,
+    left: Option<usize>,
+    right: Option<usize>,
+}
+impl<T: std::fmt::Debug> Debug for Node<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Node").field("val", &self.val).field("left", &self.left).field("right", &self.right).finish()
+    }
+}
+impl<T:Copy> NodeData for Node<T> {
+	type TVal = T;
+
+	fn get_val(&self) -> Self::TVal {
+		self.val
+	}
+
+	fn set_val(&mut self, new_val: Self::TVal) {
+		self.val = new_val;
+	}
+}
 
 #[derive(Debug)]
-pub struct BTree<T> {
+pub struct BinaryTree<T> {
 	/// tree items are stored in a vector with vector indexes used instead of pointers
     items: Vec<Node<T>>,
     /// index of the root node
@@ -17,17 +40,6 @@ impl<T> Default for BTree<T> {
     }
 }
 
-#[derive(Clone)]
-pub struct Node<T> {
-    val: T,
-    left: Option<usize>,
-    right: Option<usize>,
-}
-impl<T: std::fmt::Debug> Debug for Node<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Node").field("val", &self.val).field("left", &self.left).field("right", &self.right).finish()
-    }
-}
 
 impl<T:Copy+PartialEq+PartialOrd> BTree<T> {
     pub fn new() -> Self {

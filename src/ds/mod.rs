@@ -1,4 +1,4 @@
 mod backing;
 
 pub mod linked_list;
-pub mod b_tree;
+pub mod binary_tree;
