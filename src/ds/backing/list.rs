@@ -24,7 +24,7 @@ impl<TNode: NodeData> ListData<TNode> {
 		self.count += 1;
 		match self.free_list.pop() {
 			Some(i) => {
-				self.items[0].set_val(item.get_val());
+				self.items[i].set_val(item.get_val());
 				i
 			},
 			None => {

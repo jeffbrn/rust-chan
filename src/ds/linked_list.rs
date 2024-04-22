@@ -36,40 +36,39 @@ pub struct LinkedList<T:Copy> {
 ///     println!(item);
 /// }
 /// ```
-// pub struct SlListIter<T> {
-// 	curr_idx: Option<usize>,
-// 	list: SlList<T>,
-// }
-// /// Iterator for the list 
-// impl<T: Copy> Iterator for SlListIter<T> {
-// 	type Item = T;
+pub struct LinkedListIter<T:Copy> {
+	curr_idx: Option<usize>,
+	list: LinkedList<T>,
+}
+/// Iterator for the list 
+impl<T: Copy> Iterator for LinkedListIter<T> {
+	type Item = T;
 
-// 	fn next(&mut self) -> Option<Self::Item> {
-// 		let idx = match self.curr_idx {
-// 			None => {
-// 				return None
-// 			},
-// 			Some(i) => {
-// 				i
-// 			}
-// 		};
-// 		let item = self.list.items[idx].clone();
-// 		self.curr_idx = item.next;
-// 		Some(item.val)
-// 	}
-// }
-// /// Produces the iterator for the list
-// impl <T: std::marker::Copy> IntoIterator for SlList<T> {
-// 	type Item = T;
-// 	type IntoIter = SlListIter<T>;
+	fn next(&mut self) -> Option<Self::Item> {
+		let idx = match self.curr_idx {
+			None => {
+				return None
+			},
+			Some(i) => {
+				i
+			}
+		};
+		self.curr_idx = self.list.data[idx].next;
+		Some(self.list.data[idx].val)
+	}
+}
+/// Produces the iterator for the list
+impl <T: std::marker::Copy> IntoIterator for LinkedList<T> {
+	type Item = T;
+	type IntoIter = LinkedListIter<T>;
 
-// 	fn into_iter(self) -> Self::IntoIter {
-// 		Self::IntoIter {
-// 			curr_idx: self.head,
-// 			list: self,
-// 		}
-// 	}
-// }
+	fn into_iter(self) -> Self::IntoIter {
+		Self::IntoIter {
+			curr_idx: self.data.head,
+			list: self,
+		}
+	}
+}
 // region ^ List Iterators
 
 /// Linked list methods
@@ -156,9 +155,9 @@ fn empty() {
 	assert_eq!(list.len(), 0);
 	assert_eq!(list.data.head, None);
 	assert_eq!(list.tail, None);
-	// for _ in list {
-	// 	assert!(false);
-	// }
+	for _ in list {
+		assert!(false);
+	}
 }
 
 #[test]
@@ -166,26 +165,20 @@ fn push() {
 	let mut list = LinkedList::<i32>::new();
 	list.push(1);
 	assert_eq!(list.data.len(), 1);
-	assert_eq!(list.data[0].val, 1);
-	assert_eq!(list.data[0].next, None);
 	assert_eq!(list.data.head, Some(0));
 	assert_eq!(list.tail, Some(0));
 	assert_eq!(list.len(), 1);
 
 	list.push(2);
 	assert_eq!(list.data.len(), 2);
-	assert_eq!(list.data[0].val, 1);
-	assert_eq!(list.data[0].next, None);
-	assert_eq!(list.data[1].val, 2);
-	assert_eq!(list.data[1].next, Some(0));
 	assert_eq!(list.data.head, Some(1));
 	assert_eq!(list.tail, Some(0));
 	assert_eq!(list.len(), 2);
 	let mut i = 2;
-	// for x in list {
-	// 	assert_eq!(x, i);
-	// 	i -= 1;
-	// }
+	for x in list {
+		assert_eq!(x, i);
+		i -= 1;
+	}
 }
 
 #[test]
@@ -218,20 +211,16 @@ fn push_n_pop() {
 	assert_eq!(val, Some(2));
 	list.push(3);
 
-	assert_eq!(list.data[0].val, 1);
-	assert_eq!(list.data[0].next, None);
-	assert_eq!(list.data[1].val, 3);
-	assert_eq!(list.data[1].next, Some(0));
 	assert_eq!(list.data.head, Some(1));
 	assert_eq!(list.tail, Some(0));
 	assert_eq!(list.len(), 2);
 
 	let expected = vec![3,1];
 	let mut i = 0;
-	// for x in list {
-	// 	assert_eq!(x, expected[i]);
-	// 	i += 1;
-	// }
+	for x in list {
+		assert_eq!(x, expected[i]);
+		i += 1;
+	}
 }
 
 #[test]
@@ -251,25 +240,20 @@ fn add_tail() {
 	assert_eq!(list.tail, Some(2));
 }
 
-// #[test]
-// fn rem_tail() {
-// 	let mut list = LinkedList::<i32>::new();
-// 	list.add_tail(1);
-// 	list.add_tail(2);
-// 	list.add_tail(3);
-// 	let mut i = 1;
-// 	for a in list.clone() {
-// 		assert_eq!(a, i);
-// 		i += 1;
-// 	}
-// 	let x = list.remove_tail().unwrap();
-// 	assert_eq!(x, 3);
-// 	let x = list.remove_tail().unwrap();
-// 	assert_eq!(x, 2);
-// 	let x = list.remove_tail().unwrap();
-// 	assert_eq!(x, 1);
-// 	assert!(list.is_empty());
-// }
+#[test]
+fn rem_tail() {
+	let mut list = LinkedList::<i32>::new();
+	list.add_tail(1);
+	list.add_tail(2);
+	list.add_tail(3);
+	let x = list.remove_tail().unwrap();
+	assert_eq!(x, 3);
+	let x = list.remove_tail().unwrap();
+	assert_eq!(x, 2);
+	let x = list.remove_tail().unwrap();
+	assert_eq!(x, 1);
+	assert!(list.is_empty());
+}
 
 #[test]
 fn all_ops() {
@@ -287,8 +271,8 @@ fn all_ops() {
 	assert_eq!(x.unwrap(), 45);
 	assert_eq!(list.len(), 4);
 	let mut i = 1;
-	// for x in list {
-	// 	assert_eq!(x, i);
-	// 	i += 1;
-	// }
+	for x in list {
+		assert_eq!(x, i);
+		i += 1;
+	}
 }
