@@ -53,10 +53,10 @@ fn main() {
 	assert_eq!(x.unwrap(), 45);
 	assert_eq!(list.len(), 4);
 	let mut i = 1;
-	// for x in list {
-	// 	println!("item {i} = {x}");
-	// 	i += 1;
-	// }
+	for x in list {
+		println!("item {i} = {x}");
+		i += 1;
+	}
 
     println!("Running Binary Tree");
 	let mut tree = ds::b_tree::BTree::<i32>::new();

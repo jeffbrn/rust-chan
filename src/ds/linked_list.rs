@@ -96,7 +96,7 @@ impl<T: Copy> LinkedList<T> {
 				let v = self.data[idx].val;
 				self.data.head = n;
 				self.data.rem_item(idx);
-				if self.len() == 0 {
+				if self.is_empty() {
 					self.tail = None;
 				}
 				Some(v)
