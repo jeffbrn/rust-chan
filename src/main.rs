@@ -39,7 +39,7 @@ fn main() {
     }
 
     println!("Running Single Linked List");
-	let mut list = ds::sl_list::SlList::<i32>::new();
+	let mut list = ds::linked_list::LinkedList::<i32>::new();
 	assert!(list.is_empty());
 	list.push(2);
 	list.push(1);
@@ -59,8 +59,8 @@ fn main() {
 	}
 
     println!("Running Binary Tree");
-	let mut tree = ds::b_tree::BTree::<i32>::new();
+	let mut tree = ds::binary_tree::BinaryTree::<i32>::new();
 	assert!(tree.is_empty());
     tree.insert(10);
-    assert_eq!(tree.count(), 1);
+    assert_eq!(tree.len(), 1);
 }

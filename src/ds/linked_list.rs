@@ -1,16 +1,29 @@
+use super::backing::{node::NodeData, list::ListData};
+
+struct Node<T> {
+	/// list items are stored in a vector with vector indexes used instead of pointers
+	val: T,
+	next: Option<usize>,
+}
+
+impl<T:Copy> NodeData for Node<T> {
+	type TVal = T;
+
+	fn get_val(&self) -> Self::TVal {
+		self.val
+	}
+
+	fn set_val(&mut self, new_val: Self::TVal) {
+		self.val = new_val;
+	}
+}
+
 /// This structure is for a single-linked-list implementation that does not use pointers
 /// See datastructure implementation [here](https://opendatastructures.org/ods-python/3_1_SLList_Singly_Linked_Li.html)
-pub struct SlList<T> {
-	/// list items are stored in a vector with vector indexes used instead of pointers
-	items: Vec<Node<T>>,
-	/// index of the head of the list
+pub struct LinkedList<T:Copy> {
+	data: ListData<Node<T>>,
 	head: Option<usize>,
-	/// index of the tail of the list
 	tail: Option<usize>,
-	/// index of elements that are free on the list
-	free_list: Vec<usize>,
-	/// number of elements in the list
-	n: usize,
 }
 
 // region v List Iterators
@@ -24,12 +37,12 @@ pub struct SlList<T> {
 ///     println!(item);
 /// }
 /// ```
-pub struct SlListIter<T> {
+pub struct LinkedListIter<T:Copy> {
 	curr_idx: Option<usize>,
-	list: SlList<T>,
+	list: LinkedList<T>,
 }
 /// Iterator for the list 
-impl<T: Copy> Iterator for SlListIter<T> {
+impl<T: Copy> Iterator for LinkedListIter<T> {
 	type Item = T;
 
 	fn next(&mut self) -> Option<Self::Item> {
@@ -41,15 +54,14 @@ impl<T: Copy> Iterator for SlListIter<T> {
 				i
 			}
 		};
-		let item = self.list.items[idx].clone();
-		self.curr_idx = item.next;
-		Some(item.val)
+		self.curr_idx = self.list.data[idx].next;
+		Some(self.list.data[idx].val)
 	}
 }
 /// Produces the iterator for the list
-impl <T: std::marker::Copy> IntoIterator for SlList<T> {
+impl <T: std::marker::Copy> IntoIterator for LinkedList<T> {
 	type Item = T;
-	type IntoIter = SlListIter<T>;
+	type IntoIter = LinkedListIter<T>;
 
 	fn into_iter(self) -> Self::IntoIter {
 		Self::IntoIter {
@@ -60,56 +72,19 @@ impl <T: std::marker::Copy> IntoIterator for SlList<T> {
 }
 // region ^ List Iterators
 
-impl<T: Copy> Default for SlList<T> {
-	fn default() -> Self {
-		Self { items: Default::default(), head: Default::default(), tail: Default::default(), free_list: Default::default(), n: Default::default() }
-	}
-}
-impl<T:Copy> Clone for SlList<T> {
-	fn clone(&self) -> Self {
-		if self.is_empty() {
-			return Self::new();
-		}
-		let mut retval = Self::new();
-		let mut curr_idx = self.head.unwrap();
-		loop {
-			let mut n = self.items[curr_idx].clone();
-			let at_end = n.next.is_none();
-			if !at_end {
-				curr_idx = n.next.unwrap();
-				n.next = Some(retval.items.len()+1);
-			}
-			retval.items.push(n);
-			if at_end {
-				break;
-			}
-		}
-		retval.n = retval.items.len();
-		retval.head = Some(0);
-		retval.tail = Some(retval.n-1);
-		retval
-	}
-}
-
-/// This struct wraps the value to be stored in the list and add a pointer to the next item
-#[derive(Clone)]
-struct Node<T> {
-	val: T,
-	next: Option<usize>,
-}
-
 /// Linked list methods
-impl<T: Copy> SlList<T> {
+impl<T: Copy> LinkedList<T> {
 	/// constructor
 	pub fn new() -> Self {
-		Self::default()
+		Self { data: ListData::new(), head: None, tail: None }
 	}
 
 	/// add a new value to the front of the list
 	pub fn push(&mut self, item: T) {
-		let idx = self.add_item(item, self.head);
+		let n = Node { val: item, next: self.head };
+		let idx = self.data.add_item(n);
 		self.head = Some(idx);
-		if self.n == 1 {
+		if self.len() == 1 {
 			self.tail = self.head;
 		}
 	}
@@ -118,25 +93,26 @@ impl<T: Copy> SlList<T> {
 		match self.head {
 			None => None,
 			Some(idx) => {
-				let retval = self.items[idx].clone();
-				self.head = retval.next;
-				self.free_list.push(idx);
-				self.n -= 1;
-				if self.n == 0 {
+				let n = self.data[idx].next;
+				let v = self.data[idx].val;
+				self.head = n;
+				self.data.rem_item(idx);
+				if self.is_empty() {
 					self.tail = None;
 				}
-				Some(retval.val)
+				Some(v)
 			}
 		}
 	}
 	/// add a new value to the end of a list
 	pub fn add_tail(&mut self, item: T) {
-		let idx = self.add_item(item, None);
+		let n = Node { val: item, next: None };
+		let idx = self.data.add_item(n);
 		if let Some(tail_idx) = self.tail {
-			self.items[tail_idx].next = Some(idx);
+			self.data[tail_idx].next = Some(idx);
 		}
 		self.tail = Some(idx);
-		if self.n == 1 {
+		if self.len() == 1 {
 			self.head = self.tail;
 		}
 	}
@@ -146,56 +122,37 @@ impl<T: Copy> SlList<T> {
 			None => return None,
 			Some(i) => i
 		};
-		let result = self.items[tail_idx].val;
+		let result = self.data[tail_idx].val;
+		self.data.rem_item(tail_idx);
 		if self.head == self.tail {
 			self.head = None;
 			self.tail = None;
-			self.n = 0;
 		} else {
 			let mut new_tail: usize = self.head.unwrap();
 			loop {
-				let nxt_idx = match self.items[new_tail].next {
+				let nxt_idx = match self.data[new_tail].next {
 					None => panic!("list linkage is incorrect"),
 					Some(i) => i
 				};
 				if nxt_idx == tail_idx {
-					self.items[new_tail].next = None;
+					self.data[new_tail].next = None;
 					break;
 				}
 				new_tail = nxt_idx;
 			}
 			self.tail = Some(new_tail);
-			self.n -= 1;
 		}
-		self.free_list.push(tail_idx);
 		Some(result)
 	}
 
-	pub fn len(&self) -> usize { self.n }
-	pub fn is_empty(&self) -> bool { self.n == 0 }
+	pub fn len(&self) -> usize { self.data.len() }
+	pub fn is_empty(&self) -> bool { self.len() == 0 }
 
-	fn add_item(&mut self, item: T, nxt: Option<usize>) -> usize {
-		let n : Node<T> = Node {
-			val: item,
-			next: nxt,
-		};
-		self.n += 1;
-		match self.free_list.pop() {
-			None => {
-				self.items.push(n);
-				self.items.len()-1
-			},
-			Some(idx) => {
-				self.items[idx] = n;
-				idx
-			}
-		}
-	}
 }
 
 #[test]
 fn empty() {
-	let list = SlList::<i32>::new();
+	let list = LinkedList::<i32>::new();
 	assert_eq!(list.len(), 0);
 	assert_eq!(list.head, None);
 	assert_eq!(list.tail, None);
@@ -206,21 +163,15 @@ fn empty() {
 
 #[test]
 fn push() {
-	let mut list = SlList::<i32>::new();
+	let mut list = LinkedList::<i32>::new();
 	list.push(1);
-	assert_eq!(list.items.len(), 1);
-	assert_eq!(list.items[0].val, 1);
-	assert_eq!(list.items[0].next, None);
+	assert_eq!(list.data.len(), 1);
 	assert_eq!(list.head, Some(0));
 	assert_eq!(list.tail, Some(0));
 	assert_eq!(list.len(), 1);
 
 	list.push(2);
-	assert_eq!(list.items.len(), 2);
-	assert_eq!(list.items[0].val, 1);
-	assert_eq!(list.items[0].next, None);
-	assert_eq!(list.items[1].val, 2);
-	assert_eq!(list.items[1].next, Some(0));
+	assert_eq!(list.data.len(), 2);
 	assert_eq!(list.head, Some(1));
 	assert_eq!(list.tail, Some(0));
 	assert_eq!(list.len(), 2);
@@ -233,7 +184,7 @@ fn push() {
 
 #[test]
 fn pop() {
-	let mut list = SlList::<i32>::new();
+	let mut list = LinkedList::<i32>::new();
 	list.push(1);
 	list.push(2);
 	let val = list.pop();
@@ -241,14 +192,12 @@ fn pop() {
 	assert_eq!(list.len(), 1);
 	assert_eq!(list.head, Some(0));
 	assert_eq!(list.tail, Some(0));
-	assert_eq!(list.free_list, vec![1]);
 
 	let val = list.pop();
 	assert_eq!(val, Some(1));
 	assert_eq!(list.len(), 0);
 	assert_eq!(list.head, None);
 	assert_eq!(list.tail, None);
-	assert_eq!(list.free_list, vec![1,0]);
 
 	let val = list.pop();
 	assert_eq!(val, None);
@@ -256,17 +205,13 @@ fn pop() {
 
 #[test]
 fn push_n_pop() {
-	let mut list = SlList::<i32>::new();
+	let mut list = LinkedList::<i32>::new();
 	list.push(1);
 	list.push(2);
 	let val = list.pop();
 	assert_eq!(val, Some(2));
 	list.push(3);
 
-	assert_eq!(list.items[0].val, 1);
-	assert_eq!(list.items[0].next, None);
-	assert_eq!(list.items[1].val, 3);
-	assert_eq!(list.items[1].next, Some(0));
 	assert_eq!(list.head, Some(1));
 	assert_eq!(list.tail, Some(0));
 	assert_eq!(list.len(), 2);
@@ -281,7 +226,7 @@ fn push_n_pop() {
 
 #[test]
 fn add_tail() {
-	let mut list = SlList::<i32>::new();
+	let mut list = LinkedList::<i32>::new();
 	list.add_tail(1);
 	assert_eq!(list.len(), 1);
 	assert_eq!(list.head, Some(0));
@@ -298,15 +243,10 @@ fn add_tail() {
 
 #[test]
 fn rem_tail() {
-	let mut list = SlList::<i32>::new();
+	let mut list = LinkedList::<i32>::new();
 	list.add_tail(1);
 	list.add_tail(2);
 	list.add_tail(3);
-	let mut i = 1;
-	for a in list.clone() {
-		assert_eq!(a, i);
-		i += 1;
-	}
 	let x = list.remove_tail().unwrap();
 	assert_eq!(x, 3);
 	let x = list.remove_tail().unwrap();
@@ -318,7 +258,7 @@ fn rem_tail() {
 
 #[test]
 fn all_ops() {
-	let mut list = SlList::<i32>::new();
+	let mut list = LinkedList::<i32>::new();
 	assert!(list.is_empty());
 	list.push(2);
 	list.push(1);
