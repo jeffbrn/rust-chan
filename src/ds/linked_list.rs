@@ -22,6 +22,7 @@ impl<T:Copy> NodeData for Node<T> {
 /// See datastructure implementation [here](https://opendatastructures.org/ods-python/3_1_SLList_Singly_Linked_Li.html)
 pub struct LinkedList<T:Copy> {
 	data: ListData<Node<T>>,
+	head: Option<usize>,
 	tail: Option<usize>,
 }
 
@@ -64,7 +65,7 @@ impl <T: std::marker::Copy> IntoIterator for LinkedList<T> {
 
 	fn into_iter(self) -> Self::IntoIter {
 		Self::IntoIter {
-			curr_idx: self.data.head,
+			curr_idx: self.head,
 			list: self,
 		}
 	}
@@ -75,26 +76,26 @@ impl <T: std::marker::Copy> IntoIterator for LinkedList<T> {
 impl<T: Copy> LinkedList<T> {
 	/// constructor
 	pub fn new() -> Self {
-		Self { data: ListData::new(), tail: None }
+		Self { data: ListData::new(), head: None, tail: None }
 	}
 
 	/// add a new value to the front of the list
 	pub fn push(&mut self, item: T) {
-		let n = Node { val: item, next: self.data.head };
+		let n = Node { val: item, next: self.head };
 		let idx = self.data.add_item(n);
-		self.data.head = Some(idx);
+		self.head = Some(idx);
 		if self.len() == 1 {
-			self.tail = self.data.head;
+			self.tail = self.head;
 		}
 	}
 	/// fetch and remove a value from the front of the list
 	pub fn pop(&mut self) -> Option<T> {
-		match self.data.head {
+		match self.head {
 			None => None,
 			Some(idx) => {
 				let n = self.data[idx].next;
 				let v = self.data[idx].val;
-				self.data.head = n;
+				self.head = n;
 				self.data.rem_item(idx);
 				if self.is_empty() {
 					self.tail = None;
@@ -112,7 +113,7 @@ impl<T: Copy> LinkedList<T> {
 		}
 		self.tail = Some(idx);
 		if self.len() == 1 {
-			self.data.head = self.tail;
+			self.head = self.tail;
 		}
 	}
 	/// fetch and remove a value from the back of the list
@@ -123,11 +124,11 @@ impl<T: Copy> LinkedList<T> {
 		};
 		let result = self.data[tail_idx].val;
 		self.data.rem_item(tail_idx);
-		if self.data.head == self.tail {
-			self.data.head = None;
+		if self.head == self.tail {
+			self.head = None;
 			self.tail = None;
 		} else {
-			let mut new_tail: usize = self.data.head.unwrap();
+			let mut new_tail: usize = self.head.unwrap();
 			loop {
 				let nxt_idx = match self.data[new_tail].next {
 					None => panic!("list linkage is incorrect"),
@@ -153,7 +154,7 @@ impl<T: Copy> LinkedList<T> {
 fn empty() {
 	let list = LinkedList::<i32>::new();
 	assert_eq!(list.len(), 0);
-	assert_eq!(list.data.head, None);
+	assert_eq!(list.head, None);
 	assert_eq!(list.tail, None);
 	for _ in list {
 		assert!(false);
@@ -165,13 +166,13 @@ fn push() {
 	let mut list = LinkedList::<i32>::new();
 	list.push(1);
 	assert_eq!(list.data.len(), 1);
-	assert_eq!(list.data.head, Some(0));
+	assert_eq!(list.head, Some(0));
 	assert_eq!(list.tail, Some(0));
 	assert_eq!(list.len(), 1);
 
 	list.push(2);
 	assert_eq!(list.data.len(), 2);
-	assert_eq!(list.data.head, Some(1));
+	assert_eq!(list.head, Some(1));
 	assert_eq!(list.tail, Some(0));
 	assert_eq!(list.len(), 2);
 	let mut i = 2;
@@ -189,13 +190,13 @@ fn pop() {
 	let val = list.pop();
 	assert_eq!(val, Some(2));
 	assert_eq!(list.len(), 1);
-	assert_eq!(list.data.head, Some(0));
+	assert_eq!(list.head, Some(0));
 	assert_eq!(list.tail, Some(0));
 
 	let val = list.pop();
 	assert_eq!(val, Some(1));
 	assert_eq!(list.len(), 0);
-	assert_eq!(list.data.head, None);
+	assert_eq!(list.head, None);
 	assert_eq!(list.tail, None);
 
 	let val = list.pop();
@@ -211,7 +212,7 @@ fn push_n_pop() {
 	assert_eq!(val, Some(2));
 	list.push(3);
 
-	assert_eq!(list.data.head, Some(1));
+	assert_eq!(list.head, Some(1));
 	assert_eq!(list.tail, Some(0));
 	assert_eq!(list.len(), 2);
 
@@ -228,15 +229,15 @@ fn add_tail() {
 	let mut list = LinkedList::<i32>::new();
 	list.add_tail(1);
 	assert_eq!(list.len(), 1);
-	assert_eq!(list.data.head, Some(0));
+	assert_eq!(list.head, Some(0));
 	assert_eq!(list.tail, Some(0));
 	list.push(2);
 	assert_eq!(list.len(), 2);
-	assert_eq!(list.data.head, Some(1));
+	assert_eq!(list.head, Some(1));
 	assert_eq!(list.tail, Some(0));
 	list.add_tail(3);
 	assert_eq!(list.len(), 3);
-	assert_eq!(list.data.head, Some(1));
+	assert_eq!(list.head, Some(1));
 	assert_eq!(list.tail, Some(2));
 }
 

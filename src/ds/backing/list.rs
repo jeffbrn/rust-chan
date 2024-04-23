@@ -3,8 +3,6 @@ use super::node::NodeData;
 pub struct ListData<TNode: NodeData> {
 	// datastructure nodes stored in a vector
 	items: Vec<Box<TNode>>,
-	// index to the head node of the datastructure
-	pub head: Option<usize>,
 	// number of items currently stored
 	count: usize,
 	// indexes to elemets in the vector free to be reallocated
@@ -14,7 +12,7 @@ pub struct ListData<TNode: NodeData> {
 impl<TNode: NodeData> ListData<TNode> {
 	pub fn new() -> Self {
 		Self {
-			items: Vec::new(), head: None, count: 0, free_list: Vec::new()
+			items: Vec::new(), count: 0, free_list: Vec::new()
 		}
 	}
 
